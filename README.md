@@ -11,7 +11,7 @@ Disable any other copy of Jitsi Meetings to avoid duplicate calendar buttons.
 
 Open **Details → Extension options**, enter your Jitsi HTTPS URL, and save.
 New meeting links use the saved server immediately. The default server is
-`https://meet.jit.si/`. Use **Restore default** to switch back.
+`https://jitsi.opensats.org/`. Use **Restore default** to switch back.
 
 ### Package a customized extension
 

@@ -1,4 +1,4 @@
-const DEFAULT_SERVER = 'https://meet.jit.si/';
+const DEFAULT_SERVER = 'https://jitsi.opensats.org/';
 
 function normalizeServer(value) {
     const url = new URL(value.trim());
@@ -15,9 +15,9 @@ function readServer(callback) {
         try {
             url = normalizeServer(settings.serverUrl || DEFAULT_SERVER);
         } catch {
-            // An invalid saved value falls back to the public instance.
+            // An invalid saved value falls back to the default instance.
         }
-        const knownServers = new Set([DEFAULT_SERVER, url]);
+        const knownServers = new Set(['https://meet.jit.si/', DEFAULT_SERVER, url]);
         for (const key of Object.keys(settings)) {
             if (key.startsWith('knownServer:')) {
                 knownServers.add(key.slice('knownServer:'.length));
