@@ -1,15 +1,8 @@
-function click(e) {
-    chrome.tabs.create({ url: e.target.href + '&extid=' + chrome.runtime.id});
+const createLink = document.querySelector('#create');
+const createUrl = new URL(createLink.href);
+createUrl.searchParams.set('extid', chrome.runtime.id);
+createLink.href = createUrl.href;
 
-    window.close();
-}
-
-document.addEventListener('DOMContentLoaded', function () {
-    document.querySelector('#settings').addEventListener('click', () => {
-        chrome.runtime.openOptionsPage();
-    });
-    var anchors = document.querySelectorAll('a');
-    for (var i = 0; i < anchors.length; i++) {
-        anchors[i].addEventListener('click', click);
-    }
+document.querySelector('#settings').addEventListener('click', () => {
+    chrome.runtime.openOptionsPage();
 });
