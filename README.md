@@ -10,7 +10,7 @@ choose **Load unpacked**, and select the `calendar` directory from this reposito
 Disable any other copy of Jitsi Meetings to avoid duplicate calendar buttons.
 
 Open **Details → Extension options**, enter your Jitsi HTTPS URL, and save.
-Refresh open calendar tabs before creating a meeting. The default server is
+New meeting links use the saved server immediately. The default server is
 `https://meet.jit.si/`. Use **Restore default** to switch back.
 
 ### Package a customized extension

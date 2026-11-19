@@ -253,6 +253,7 @@ class Description {
      */
     clickAddMeeting(isDescriptionUpdated, location) {
         if (!isDescriptionUpdated) {
+            this.event.baseUrl = configuredServer;
             // Build the invitation content
             if (CONFERENCE_MAPPER_SCRIPT) {
                 // queries a predefined location for settings
@@ -1253,6 +1254,12 @@ function checkAndUpdateCalendarG2() {
 readServer((url, servers) => {
     configuredServer = url;
     knownServers = servers;
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local' && changes.serverUrl) {
+            configuredServer = changes.serverUrl.newValue || DEFAULT_SERVER;
+            knownServers.add(configuredServer);
+        }
+    });
     if (document.querySelector('body').dataset.viewfamily) {
         // this is google calendar new interface
         checkAndUpdateCalendarG2();
