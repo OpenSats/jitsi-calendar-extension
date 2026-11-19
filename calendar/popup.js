@@ -5,6 +5,9 @@ function click(e) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    document.querySelector('#settings').addEventListener('click', () => {
+        chrome.runtime.openOptionsPage();
+    });
     var anchors = document.querySelectorAll('a');
     for (var i = 0; i < anchors.length; i++) {
         anchors[i].addEventListener('click', click);

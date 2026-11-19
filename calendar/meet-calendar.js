@@ -1,5 +1,5 @@
-const BASE_DOMAIN = "meet.jit.si";
-const BASE_URL = "https://" + BASE_DOMAIN + "/";
+let configuredServer;
+let knownServers;
 const APP_NAME = "Jitsi";
 const NUMBER_RETRIEVE_SCRIPT = false;
 const CONFERENCE_MAPPER_SCRIPT = false;
@@ -8,6 +8,23 @@ const CONFERENCE_MAPPER_SCRIPT = false;
 const LOCATION_TEXT = APP_NAME + ' Meeting';
 
 let generateRoomNameAsDigits = false;
+
+// Keep the original server when reopening an invitation after changing settings.
+function findMeeting(text) {
+    if (!text) return;
+    for (const candidate of text.match(/https:\/\/[^\s,<>"']+/g) || []) {
+        try {
+            const url = new URL(candidate);
+            const room = url.pathname.split('/').pop();
+            const baseUrl = new URL('.', url).href;
+            if (room && knownServers.has(baseUrl)) {
+                return { baseUrl, room };
+            }
+        } catch {
+            // Calendar fields can contain partially edited URLs.
+        }
+    }
+}
 
 /**
  * The event page we will be updating.
@@ -103,40 +120,12 @@ class EventContainer {
             this.reset();
         }
 
-        var inviteText;
-        var ix = -1;
-
-        // checking location
-        if (this.location && this.location.text) {
-            inviteText = this.location.text;
-
-            if (inviteText)
-                ix = inviteText.indexOf(BASE_URL);
-        }
-
-        // if nothing found let's check description
-        if (ix == -1) {
-            inviteText = this.description.value;
-
-            if (inviteText)
-                ix = inviteText.indexOf(BASE_URL);
-        }
-
-        var url;
-        if (ix != -1 && (url = inviteText.substring(ix)) && url.length > 0) {
-            let resMeetingId = url.substring(BASE_URL.length);
-
-            // there can be ',' after the meeting, normally added when adding
-            // physical rooms to the meeting
-            var regexp = /([a-zA-Z]+).*/g;
-            var match = regexp.exec(resMeetingId);
-            if (match && match.length > 1)
-                resMeetingId = match[1];
-
-            this.meetingId = resMeetingId;
-        }
-        else {
-
+        const existing = findMeeting(this.location && this.location.text)
+            || findMeeting(this.description.value);
+        this.baseUrl = existing ? existing.baseUrl : configuredServer;
+        if (existing) {
+            this.meetingId = existing.room;
+        } else {
             if (generateRoomNameAsDigits) {
                 this.meetingId = randomDigitString(10);
             }
@@ -237,14 +226,14 @@ class Description {
             var descriptionContainsURL =
                 (this.value
                     && this.value.length >= 1
-                    && this.value.indexOf(BASE_URL) !== -1);
+                    && this.value.indexOf(this.event.baseUrl) !== -1);
             isDescriptionUpdated =
                 descriptionContainsURL
                 // checks whether there is the generated name in the location
                 // input if there is a location
                 || (location != null
                     && location.text
-                    && location.text.indexOf(LOCATION_TEXT) != -1);
+                    && findMeeting(location.text));
         }
 
         if(isDescriptionUpdated) {
@@ -268,7 +257,7 @@ class Description {
             if (CONFERENCE_MAPPER_SCRIPT) {
                 // queries a predefined location for settings
                 $.getJSON(CONFERENCE_MAPPER_SCRIPT
-                    + "?conference=" + this.event.meetingId + "@conference." + BASE_DOMAIN,
+                    + "?conference=" + this.event.meetingId + "@conference." + new URL(this.event.baseUrl).hostname,
                     jsonobj => {
                         if (jsonobj.conference && jsonobj.id) {
                             this.addDescriptionText(
@@ -287,7 +276,7 @@ class Description {
 
             if (location)
                 location.addLocationText(
-                    LOCATION_TEXT + ' - ' + BASE_URL + this.event.meetingId);
+                    LOCATION_TEXT + ' - ' + this.event.baseUrl + this.event.meetingId);
         } else {
             this.updateButtonURL();
         }
@@ -327,7 +316,7 @@ class Description {
         } else {
             inviteText =
                 "Click the following link to join the meeting " +
-                "from your computer: " + BASE_URL + this.event.meetingId;
+                "from your computer: " + this.event.baseUrl + this.event.meetingId;
         }
 
         if (this.event.numbers && Object.keys(this.event.numbers).length > 0) {
@@ -355,7 +344,7 @@ class Description {
         }
 
         if (hasTemplate) {
-            inviteText = inviteText.replace(/\{BASE_URL\}/g, BASE_URL);
+            inviteText = inviteText.replace(/\{BASE_URL\}/g, this.event.baseUrl);
             inviteText
                 = inviteText.replace(/\{MEETING_ID\}/g, this.event.meetingId);
             if (dialInID) {
@@ -389,7 +378,7 @@ class Description {
             var button = $('#jitsi_button a');
             button.html("Join your " + LOCATION_TEXT + " now");
             button.off('click');
-            button.attr('href', BASE_URL + this.event.meetingId);
+            button.attr('href', this.event.baseUrl + this.event.meetingId);
             button.attr('target', '_new');
         } catch (e) {
             console.log(e);
@@ -863,7 +852,7 @@ class G2Description extends Description {
                 // and then click join now before saving
                 this.event.updateMeetingId();
 
-                window.open(BASE_URL + this.event.meetingId, '_blank');
+                window.open(this.event.baseUrl + this.event.meetingId, '_blank');
             });
         } catch (e) {
             console.log(e);
@@ -1031,7 +1020,7 @@ class MSLiveDescription extends Description {
             button.parent().on('click', e => {
                 e.preventDefault();
 
-                window.open(BASE_URL + this.event.meetingId, '_blank');
+                window.open(this.event.baseUrl + this.event.meetingId, '_blank');
             });
         } catch (e) {
             console.log(e);
@@ -1278,11 +1267,14 @@ function checkAndUpdateCalendarG2() {
     }
 }
 
-if (document.querySelector('body').dataset.viewfamily) {
-    // this is google calendar new interface
-    checkAndUpdateCalendarG2();
-} else {
-    // google calendar classic or outlook
-    checkAndUpdateCalendar();
-}
-
+readServer((url, servers) => {
+    configuredServer = url;
+    knownServers = servers;
+    if (document.querySelector('body').dataset.viewfamily) {
+        // this is google calendar new interface
+        checkAndUpdateCalendarG2();
+    } else {
+        // google calendar classic or outlook
+        checkAndUpdateCalendar();
+    }
+});

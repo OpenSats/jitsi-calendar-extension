@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Jitsi Meetings settings</title>
+    <script defer src="server-settings.js"></script>
+    <script defer src="options.js"></script>
+</head>
+<body>
+    <form>
+        <p><label for="server">Jitsi server URL</label><br>
+        <input id="server" type="url" required size="40" placeholder="https://meet.example.com/"></p>
+        <p>Refresh open calendar tabs after saving.</p>
+        <button type="submit">Save</button>
+        <button type="button" id="reset">Restore default</button>
+        <p role="status" id="status"></p>
+    </form>
+</body>
+</html>

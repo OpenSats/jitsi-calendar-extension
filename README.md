@@ -3,17 +3,19 @@ Jidesha
 
 A Chrome extension for calendar integration (Google Calendar and Office 365).
 
-## How to create your own extension for your Jitsi Meet installation
+## Configure the calendar meeting server
 
-Each Jitsi Meet installation needs a customised extension.
-There is only one small JSON file to adapt. You have
-to create the extension and distribute it, either through
-Google Chrome's Web Store or by telling your users how to
-install the CRX file.
+To install this fork locally, open `chrome://extensions`, enable Developer mode,
+choose **Load unpacked**, and select the `calendar` directory from this repository.
+Disable any other copy of Jitsi Meetings to avoid duplicate calendar buttons.
 
-### Create the extension
+Open **Details → Extension options**, enter your Jitsi HTTPS URL, and save.
+Refresh open calendar tabs before creating a meeting. The default server is
+`https://meet.jit.si/`. Use **Restore default** to switch back.
 
-Edit the `manifest.json` file. You must adapt the `externally_connectable`
+### Package a customized extension
+
+For deployments that also need the Jitsi site to contact the extension, adapt the `manifest.json` file’s `externally_connectable`
 URL:
 
     "matches": [
