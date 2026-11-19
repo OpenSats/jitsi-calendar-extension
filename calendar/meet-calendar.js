@@ -622,56 +622,38 @@ class G2Event extends EventContainer {
         return this.locationInstance;
     }
 
-    /**
-     * The button container holding jitsi button.
-     * @returns {*}
-     */
-    get buttonContainer() {
-
-        // we will create a new raw to place the button
-        // this row will be before the notifications row
-        let neighbor = $('#xNtList').parent();
-        if(neighbor.length == 0){
-            return null;
-        }
-
-        let buttonContainer = $('#jitsi_button_container');
-        if (buttonContainer.length !== 0) {
-            return buttonContainer.find('content');
-        }
-
-        let newRow = $(
-            '<div class = "FrSOzf">\
-                <div class = "tzcF6">\
-                    <div class = "DPvwYc jitsi_edit_page_icon"/>\
-                </div>\
-                <div class = "j3nyw">\
-                    <div class = "BY5aAd">\
-                        <div role = "button" \
-                            class = "uArJ5e UQuaGc Y5sE8d" \
-                            id="jitsi_button_container">\
-                            <content class = "CwaK9">\
-                                <span id="jitsi_button" \
-                                      class="RveJvd snByac">\
-                                </span>\
-                            </content>\
-                        </div>\
-                    </div>\
-                </div>\
-            </div>');
-        newRow.insertBefore(neighbor);
-
-        return newRow.find('content');
-    }
-
-    /**
-     * Adds the jitsi button in buttonContainer.
-     */
     addJitsiButton() {
-        var container = this.buttonContainer;
-        if (!container)
-            return false;
+        const notifications = document.querySelector('#xNtList');
+        const location = document.querySelector('#xLocIn, #xOnCal');
+        let neighbor = location || notifications.parentElement;
+        // Place conferencing above the location row, outside its input wrappers.
+        if (location && !location.contains(notifications)) {
+            while (!neighbor.parentElement.contains(notifications)) {
+                neighbor = neighbor.parentElement;
+            }
+        }
 
+        const row = document.createElement('div');
+        row.className = 'jitsi-conference-row';
+        row.innerHTML = `
+            <span class="jitsi-conference-icon" aria-hidden="true"></span>
+            <div class="jitsi-conference-details">
+                <button type="button" id="jitsi_button"></button>
+                <div class="jitsi-conference-address" dir="auto"></div>
+            </div>`;
+        neighbor.before(row);
+
+        // Align with Calendar's field column across different editor widths.
+        if (location) {
+            const field = location.querySelector('input') || location;
+            const bounds = row.getBoundingClientRect();
+            const fieldBounds = field.getBoundingClientRect();
+            const inset = getComputedStyle(row).direction === 'rtl'
+                ? bounds.right - fieldBounds.right : fieldBounds.left - bounds.left;
+            if (inset >= 32 && inset < bounds.width / 2) {
+                row.style.setProperty('--jitsi-field-inset', inset + 'px');
+            }
+        }
         this.description.update(this.location);
     }
 
@@ -821,42 +803,20 @@ class G2Description extends Description {
      * no meeting scheduled.
      */
     updateInitialButtonURL(location) {
-        let button = $('#jitsi_button');
-        button.html('Add a ' + LOCATION_TEXT);
-
-        let container = this.event.buttonContainer;
-
-        container.parent().off('click');
-        container.parent().on('click', e => {
-            e.preventDefault();
-
-            this.clickAddMeeting(false, location);
-        });
+        const button = $('#jitsi_button');
+        button.text('Add Jitsi meeting');
+        button.off('click').on('click', () => this.clickAddMeeting(false, location));
     }
 
-    /**
-     * Updates the url for the button.
-     */
     updateButtonURL() {
-        try {
-            var button = $('#jitsi_button');
-            button.html("Join your " + LOCATION_TEXT + " now");
-
-            var container = this.event.buttonContainer;
-
-            container.parent().off('click');
-            container.parent().on('click', e => {
-                e.preventDefault();
-
-                // call updateMeetingId, the case where somebody edited location
-                // and then click join now before saving
-                this.event.updateMeetingId();
-
-                window.open(this.event.baseUrl + this.event.meetingId, '_blank');
-            });
-        } catch (e) {
-            console.log(e);
-        }
+        const button = $('#jitsi_button');
+        button.text('Join with Jitsi');
+        button.siblings('.jitsi-conference-address')
+            .text((this.event.baseUrl + this.event.meetingId).replace(/^https:\/\//, ''));
+        button.off('click').on('click', () => {
+            this.event.updateMeetingId();
+            window.open(this.event.baseUrl + this.event.meetingId, '_blank', 'noopener');
+        });
     }
 }
 
