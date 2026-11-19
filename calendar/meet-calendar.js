@@ -1135,6 +1135,71 @@ function checkAndUpdateCalendar() {
     }
 }
 
+function updateQuickMeeting(dialog, calendar) {
+    const tab = dialog.querySelector('#tabEvent');
+    const more = dialog.querySelector('[jsname="rhPddf"]');
+    const existing = dialog.querySelector('.jitsi-quick-meeting');
+    if (!tab || !more || tab.getAttribute('aria-selected') === 'false') {
+        if (existing) existing.remove();
+        return;
+    }
+
+    const controls = dialog.querySelectorAll('button, [role="button"], a[href]');
+    const meet = Array.from(controls).find(control =>
+        /Google Meet|meet\.google\.com/i.test(
+            [control.textContent, control.getAttribute('aria-label'), control.title,
+                control.getAttribute('href')].join(' ')) && control.getClientRects().length);
+    // Some Calendar layouts render the location and Meet labels as plain text.
+    let anchor = meet;
+    let insertAfter = Boolean(meet);
+    if (!anchor) {
+        const labels = document.createTreeWalker(dialog, NodeFilter.SHOW_TEXT);
+        let text;
+        while ((text = labels.nextNode())) {
+            const label = text.parentElement;
+            if (!label.getClientRects().length) continue;
+            if (/Google Meet/i.test(text.data)) {
+                anchor = label;
+                insertAfter = true;
+                break;
+            }
+            if (/^Add location$/i.test(text.data.trim())) anchor = label;
+        }
+    }
+    if (!anchor) anchor = dialog.querySelector('#xLocIn, input[placeholder="Add location"]');
+    if (!anchor) anchor = more;
+
+    // Include the native row's icon and wrappers, stopping before the field list.
+    while (anchor.parentElement !== dialog) {
+        const bounds = anchor.getBoundingClientRect();
+        const siblings = Array.from(anchor.parentElement.children);
+        const anotherRow = siblings.some(element => {
+            if (element === anchor || !element.getClientRects().length) return false;
+            const rect = element.getBoundingClientRect();
+            return rect.height && (rect.top >= bounds.bottom || rect.bottom <= bounds.top);
+        });
+        if (anotherRow || anchor.parentElement.getBoundingClientRect().height > Math.max(48, bounds.height + 2)) break;
+        anchor = anchor.parentElement;
+    }
+    if (existing && (insertAfter ? anchor.nextElementSibling : anchor.previousElementSibling) === existing) return;
+
+    const button = existing || document.createElement('button');
+    if (!existing) {
+        button.type = 'button';
+        button.className = 'jitsi-quick-meeting';
+        button.innerHTML = '<span class="jitsi-conference-icon" aria-hidden="true"></span>Add Jitsi meeting';
+        button.addEventListener('click', () => {
+            const edit = dialog.querySelector('[jsname="rhPddf"]');
+            if (edit) {
+                calendar.scheduleAutoCreateMeeting = true;
+                edit.click();
+            }
+        });
+    }
+    if (insertAfter) anchor.after(button);
+    else anchor.before(button);
+}
+
 /**
  * Checks whether it is ok to add the button to current page
  * in case of new google calendar interface
@@ -1161,65 +1226,23 @@ function checkAndUpdateCalendarG2() {
 
         // Listen for mutations (showing the bubble), for quick adding events
         var body = document.querySelector('body');
-        new MutationObserver(function(mutations) {
-
-            // the main calendar view
-            if (document.querySelector('body').dataset.viewfamily === 'EVENT') {
-                mutations.forEach(function (mutation) {
-                    var mel = mutation.addedNodes[0];
-                    var newElement = mel && mel.outerHTML;
-
-                    if (newElement
-                        && (newElement.search('role=\"dialog\"') !== -1)) {
-
-                        // skip if our button is already added
-                        if ($('#jitsi_button_quick_add').length != 0) {
-                            return;
-                        }
-
-                        var tabEvent = $(mel).find("#tabEvent");
-                        if (tabEvent.length > 0) {
-                            var jitsiQuickAddButton = $(
-                                '<content class="" role="tabpanel" id="jitsi_button_quick_add_content"> \
-                                    <div class="fy8IH poWrGb">\
-                                        <div class="FkXdCf HyA7Fb">\
-                                            <div class="DPvwYc QusFJf jitsi_quick_add_icon"/>\
-                                        </div>\
-                                        <div class="mH89We">\
-                                            <div role="button" \
-                                                 class="uArJ5e UQuaGc Y5sE8d" \
-                                                 id="jitsi_button_quick_add">\
-                                                <content class="CwaK9">\
-                                                    <span class="RveJvd jitsi_quick_add_text_size">\
-                                                        Add a ' + LOCATION_TEXT + '\
-                                                    </span>\
-                                                </content>\
-                                            </div>\
-                                        </div>\
-                                    </div>\
-                                </content>');
-
-                            $(tabEvent.parent()).append(jitsiQuickAddButton);
-
-                            var clickHandler
-                                = jitsiQuickAddButton.find(
-                                    '#jitsi_button_quick_add');
-                            clickHandler.on('click', function (e) {
-                                c.scheduleAutoCreateMeeting = true;
-                                $('div[role="button"][jsname="rhPddf"]').click();
-                            });
-
-                            return;
-                        }
-                    }
-                });
+        function updateQuickDialogs() {
+            for (const dialog of body.querySelectorAll('[role="dialog"]')) {
+                updateQuickMeeting(dialog, c);
+            }
+        }
+        if (body.dataset.viewfamily === 'EVENT') updateQuickDialogs();
+        new MutationObserver(function() {
+            if (body.dataset.viewfamily === 'EVENT') {
+                updateQuickDialogs();
             } else if (document.querySelector('body').dataset.viewfamily
                 === 'EVENT_EDIT') {
                 c.update();
             }
         }).observe(
             body, {
-                attributes: false,
+                attributes: true,
+                attributeFilter: ['aria-selected'],
                 childList: true,
                 characterData: false,
                 subtree : true
